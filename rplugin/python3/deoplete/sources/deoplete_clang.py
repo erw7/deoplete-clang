@@ -86,8 +86,9 @@ class Source(Base):
 
         # search for .clang file
         path = os.path.dirname(self.vim.current.buffer.name)
+        root = re.compile('^(/|[a-z]:\\\\)$', flags=re.IGNORECASE)
         while not os.path.isfile(path + "/.clang"):
-            if path == "/":
+            if root.match(path):
                 break
             path = os.path.realpath(path + "/..")
 
