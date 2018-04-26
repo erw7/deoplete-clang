@@ -1,16 +1,26 @@
 import os
 import re
+import sys
 
 from .base import Base
 from deoplete.util import load_external_module
 
 current = __file__
 
+
 load_external_module(current, 'clang')
 import clang.cindex as clang
 
 load_external_module(current, 'sources/deoplete_clang')
 from clang_data import index_h
+
+
+if sys.platform == 'win32':
+    def is_windows():
+        return sys.platform == 'win32'
+
+    def posixpath(filename):
+        return filename.replace('\\', '/')
 
 
 class Source(Base):
@@ -38,10 +48,14 @@ class Source(Base):
             'deoplete#sources#clang#libclang_path',
             ''
         )
+        if is_windows():
+            self.library_path = posixpath(self.library_path)
         self.clang_header = vars.get(
             'deoplete#sources#clang#clang_header',
             ''
         )
+        if is_windows():
+            self.clang_header = posixpath(self.clang_header)
         self.completion_flags = vars.get(
             'deoplete#sources#clang#flags',
             []
@@ -76,7 +90,9 @@ class Source(Base):
         clang_complete_database = vars.get(
             'deoplete#sources#clang#clang_complete_database',
             ''
-       )
+        )
+        if is_windows():
+            clang_complete_database = posixpath(clang_complete_database)
 
         if not clang.Config.loaded or \
                 clang.Config.library_path != self.library_path:
@@ -86,10 +102,15 @@ class Source(Base):
 
         # search for .clang file
         path = os.path.dirname(self.vim.current.buffer.name)
+        if is_windows():
+            path = posixpath(path)
+        root = re.compile('^([a-zA-Z]:)*/$')
         while not os.path.isfile(path + "/.clang"):
-            if path == "/":
+            if root.match(path):
                 break
             path = os.path.realpath(path + "/..")
+            if is_windows():
+                path = posixpath(path)
 
         path2 = path + "/.clang"
         if os.path.isfile(path2):
@@ -203,7 +224,11 @@ class Source(Base):
         # Use latest clang version
         latest = versions[-1]
 
-        return os.path.join(include_dir, latest, 'include')
+        path = os.path.join(include_dir, latest, 'include')
+        if is_windows():
+            return posixpath(path)
+        else:
+            return path
 
     def get_params(self, fname):
         if fname in self.params:
@@ -216,6 +241,8 @@ class Source(Base):
             params = self.database[fname]
         else:
             params = self.get_compilation_database(os.path.abspath(fname))
+            if is_windows():
+                params = posixpath(params)
 
         header = self.get_builtin_clang_header()
         if header:
@@ -237,6 +264,8 @@ class Source(Base):
             return (fname, commands)
 
         noext_name, extension = os.path.splitext(fname)
+        if is_windows():
+            noext_name = posixpath(noext_name)
 
         test_for = self.test_extensions.get(extension, None)
 
@@ -271,9 +300,13 @@ class Source(Base):
                     full_path = ''
                     if not os.path.isabs(arg[0]):
                         full_path = os.path.realpath(os.path.join(cwd, arg))
+                        if is_windows():
+                            full_path = posixpath(full_path)
                     if skip or full_path == used_fname or arg in \
                             ['-c', used_fname,
-                             os.path.basename(used_fname),
+                             os.path.basename(used_fname)
+                             if is_windows()
+                             else posixpath(os.path.basename(used_fname)),
                              full_path]:
                         skip = 0
                         continue
@@ -285,6 +318,8 @@ class Source(Base):
                         if not os.path.isabs(include_path):
                             include_path = os.path.normpath(
                                 os.path.join(cwd, include_path))
+                            if is_windows():
+                                include_path = posixpath(include_path)
                         params.append('-I' + include_path)
                         continue
                     params.append(arg)
