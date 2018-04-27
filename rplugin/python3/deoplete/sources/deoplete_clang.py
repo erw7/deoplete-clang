@@ -76,7 +76,7 @@ class Source(Base):
         clang_complete_database = vars.get(
             'deoplete#sources#clang#clang_complete_database',
             ''
-       )
+        )
 
         if not clang.Config.loaded or \
                 clang.Config.library_path != self.library_path:
@@ -128,7 +128,7 @@ class Source(Base):
                 else:
                     # Note: Dummy call to make cache
                     self.gather_candidates(context)
-            except:
+            except Exception:
                 # Ignore the error
                 pass
 
